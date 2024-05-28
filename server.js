@@ -1,6 +1,7 @@
 const express = require('express');
 const admin = require('firebase-admin');
 const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
 
 // Initialize Express app
 const app = express();
@@ -18,10 +19,11 @@ const firestore = admin.firestore();
 // Middleware to parse JSON bodies
 app.use(express.json());
 
+const JWT_SECRET = 'your_jwt_secret'; // Replace with your actual secret
+
 // Function to compare provided password with hashed password
 async function comparePasswords(plainPassword, hashedPassword) {
   try {
-    // Compare the provided password with the hashed password
     return await bcrypt.compare(plainPassword, hashedPassword);
   } catch (error) {
     console.error('Error comparing passwords:', error);
@@ -29,23 +31,36 @@ async function comparePasswords(plainPassword, hashedPassword) {
   }
 }
 
-// Route to add a new user
+// Function to generate JWT
+function generateToken(user) {
+  return jwt.sign({ uid: user.uid, email: user.email }, JWT_SECRET, { expiresIn: '1h' });
+}
+
+// Middleware to verify JWT
+function authenticateToken(req, res, next) {
+  const token = req.headers['authorization'];
+  if (!token) return res.status(401).json({ error: 'Access denied' });
+
+  jwt.verify(token, JWT_SECRET, (err, user) => {
+    if (err) return res.status(403).json({ error: 'Invalid token' });
+    req.user = user;
+    next();
+  });
+}
+
 // Route to add a new user
 app.post('/signup', async (req, res) => {
   try {
     const { email, password, displayName } = req.body;
 
-    // Hash the user's password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Create user in Firebase Authentication
     const userRecord = await admin.auth().createUser({
       email,
       password,
-      displayName // Optional
+      displayName
     });
 
-    // Add user data to Firestore, including the hashed password
     const userData = {
       email,
       displayName,
@@ -57,53 +72,59 @@ app.post('/signup', async (req, res) => {
     res.status(201).json({ id: userRecord.uid, ...userData });
   } catch (error) {
     console.error('Error adding user:', error);
-    res.status(500).json({ error: 'Failed to add user' , message : 'The email address is already in use by another account'});
+    res.status(500).json({ error: 'Failed to add user', message: 'The email address is already in use by another account' });
   }
 });
 
-
-// Route to handle user login
 // Route to handle user login
 app.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Retrieve user record from Firestore
     const userSnapshot = await firestore.collection('users').where('email', '==', email).get();
 
     if (userSnapshot.empty) {
-      // If no user is found, return an error response
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
     const userDoc = userSnapshot.docs[0];
     const userData = userDoc.data();
 
-    // Compare provided password with hashed password
     const isPasswordValid = await comparePasswords(password, userData.passwordHash);
 
     if (!isPasswordValid) {
-      // If password is invalid, return an error response
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    // If authentication is successful, return a success response
-    res.status(200).json({ message: 'Login successful', user: userData });
+    const token = generateToken({ uid: userDoc.id, email: userData.email });
+
+    res.status(200).json({ message: 'Login successful', token });
   } catch (error) {
     console.error('Error logging in user:', error);
-    // If authentication fails due to any error, return an error response
     res.status(401).json({ error: 'Invalid credentials' });
   }
 });
 
-app.get('/getUser', async (req, res) => {
-  
+// Route to handle transactions
+app.post('/users/transactions', authenticateToken, async (req, res) => {
+  const transaction = {
+    amount: req.body.amount,
+    type: req.body.type,
+    category: req.body.category,
+    date: req.body.date
+  };
 
-})
+  try {
+    await firestore.collection('users').doc(req.user.uid).collection('transactions').add(transaction);
+
+    res.status(200).json({ message: 'Transaction performed' });
+  } catch (error) {
+    console.error('Error adding transaction:', error);
+    res.status(500).json({ error: 'Failed to add transaction' });
+  }
+});
 
 // Start server
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
 });
-
-
