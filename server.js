@@ -106,7 +106,7 @@ app.post('/login', async (req, res) => {
 });
 
 // Route to handle transactions
-app.post('/users/transactions', authenticateToken, async (req, res) => {
+app.post('/user/transactions', authenticateToken, async (req, res) => {
   const transaction = {
     amount: req.body.amount,
     type: req.body.type,
@@ -124,6 +124,16 @@ app.post('/users/transactions', authenticateToken, async (req, res) => {
   }
 });
 
+// Route to handle user logout
+app.post('/logout', authenticateToken, async (req, res) => {
+  try {
+    await admin.auth().revokeRefreshTokens(req.user.uid);
+    res.status(200).json({ message: 'Logout successful' });
+  } catch (error) {
+    console.error('Error logging out user:', error);
+    res.status(500).json({ error: 'Failed to logout' });
+  }
+});
 // Start server
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
