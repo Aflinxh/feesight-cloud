@@ -33,7 +33,7 @@ async function comparePasswords(plainPassword, hashedPassword) {
 
 // Function to generate JWT
 function generateToken(user) {
-  return jwt.sign({ uid: user.uid, email: user.email }, JWT_SECRET, { expiresIn: '1h' });
+  return jwt.sign({ uid: user.uid, email: user.email }, JWT_SECRET, { expiresIn: '60d' });
 }
 
 // Middleware to verify JWT
