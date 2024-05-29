@@ -33,19 +33,31 @@ async function comparePasswords(plainPassword, hashedPassword) {
 
 // Function to generate JWT
 function generateToken(user) {
-  return jwt.sign({ uid: user.uid, email: user.email }, JWT_SECRET, { expiresIn: '1h' });
+  return jwt.sign({ uid: user.uid, email: user.email }, JWT_SECRET, { expiresIn: '60d' });
 }
 
 // Middleware to verify JWT
-function authenticateToken(req, res, next) {
+async function authenticateToken(req, res, next) {
   const token = req.headers['authorization'];
   if (!token) return res.status(401).json({ error: 'Access denied' });
 
-  jwt.verify(token, JWT_SECRET, (err, user) => {
-    if (err) return res.status(403).json({ error: 'Invalid token' });
-    req.user = user;
+  try {
+    // Verify JWT and check if it is still valid with Firebase
+    const decodedToken = jwt.verify(token, JWT_SECRET);
+    const user = await admin.auth().getUser(decodedToken.uid);
+    const validSince = new Date(user.tokensValidAfterTime).getTime() / 1000;
+
+    // Check if the token was issued before the last token revocation
+    if (decodedToken.iat < validSince) {
+      return res.status(403).json({ error: 'Invalid token' });
+    }
+
+    req.user = decodedToken;
     next();
-  });
+  } catch (error) {
+    console.error('Error authenticating token:', error);
+    res.status(403).json({ error: 'Invalid token' });
+  }
 }
 
 // Route to add a new user
@@ -105,6 +117,24 @@ app.post('/login', async (req, res) => {
   }
 });
 
+// Route to update user
+app.put('/user', authenticateToken, async (req, res) => {
+  try {
+    const { email, displayName } = req.body;
+    const userUpdate = {};
+    if (email) userUpdate.email = email;
+    if (displayName) userUpdate.displayName = displayName;
+
+    await admin.auth().updateUser(req.user.uid, userUpdate);
+    await firestore.collection('users').doc(req.user.uid).update(userUpdate);
+
+    res.status(200).json({ message: 'User updated successfully' });
+  } catch (error) {
+    console.error('Error updating user:', error);
+    res.status(500).json({ error: 'Failed to update user' });
+  }
+});
+
 // Route to handle transactions
 app.post('/user/transactions', authenticateToken, async (req, res) => {
   const transaction = {
@@ -134,6 +164,7 @@ app.post('/logout', authenticateToken, async (req, res) => {
     res.status(500).json({ error: 'Failed to logout' });
   }
 });
+
 // Start server
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
