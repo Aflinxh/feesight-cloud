@@ -37,15 +37,27 @@ function generateToken(user) {
 }
 
 // Middleware to verify JWT
-function authenticateToken(req, res, next) {
+async function authenticateToken(req, res, next) {
   const token = req.headers['authorization'];
   if (!token) return res.status(401).json({ error: 'Access denied' });
 
-  jwt.verify(token, JWT_SECRET, (err, user) => {
-    if (err) return res.status(403).json({ error: 'Invalid token' });
-    req.user = user;
+  try {
+    // Verify JWT and check if it is still valid with Firebase
+    const decodedToken = jwt.verify(token, JWT_SECRET);
+    const user = await admin.auth().getUser(decodedToken.uid);
+    const validSince = new Date(user.tokensValidAfterTime).getTime() / 1000;
+
+    // Check if the token was issued before the last token revocation
+    if (decodedToken.iat < validSince) {
+      return res.status(403).json({ error: 'Invalid token' });
+    }
+
+    req.user = decodedToken;
     next();
-  });
+  } catch (error) {
+    console.error('Error authenticating token:', error);
+    res.status(403).json({ error: 'Invalid token' });
+  }
 }
 
 // Route to add a new user
@@ -152,6 +164,7 @@ app.post('/logout', authenticateToken, async (req, res) => {
     res.status(500).json({ error: 'Failed to logout' });
   }
 });
+
 // Start server
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
