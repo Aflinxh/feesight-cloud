@@ -217,21 +217,21 @@ app.post('/logout', authenticateToken, async (req, res) => {
   }
 });
 
-// // Route to handle user deletion
-// app.delete('/user', authenticateToken, async (req, res) => {
-//   try {
-//     // Delete the user from Firebase Authentication
-//     await admin.auth().deleteUser(req.user.uid);
+// Route to handle user deletion
+app.delete('/user', authenticateToken, async (req, res) => {
+  try {
+    // Delete the user from Firebase Authentication
+    await admin.auth().deleteUser(req.user.uid);
     
-//     // Delete the user document from Firestore
-//     await firestore.collection('users').doc(req.user.uid).delete();
+    // Delete the user document from Firestore
+    await firestore.collection('users').doc(req.user.uid).delete();
 
-//     res.status(200).json({ message: 'User deleted successfully' });
-//   } catch (error) {
-//     console.error('Error deleting user:', error);
-//     res.status(500).json({ error: 'Failed to delete user' });
-//   }
-// });
+    res.status(200).json({ message: 'User deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    res.status(500).json({ error: 'Failed to delete user' });
+  }
+});
 
 // Start server
 app.listen(port, () => {
