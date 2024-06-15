@@ -2,25 +2,19 @@ const express = require('express');
 const admin = require('firebase-admin');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-// const { Storage } = require('@google-cloud/storage');
-
-// // Inisialisasi klien storage dengan kredensial Anda
-// const storage = new Storage({
-//   keyFilename: './serviceaccount.json', // Sesuaikan path dengan file key Anda
-//   projectId: 'submissionmlgc-ronalsimbolon75', // Ganti dengan project ID Anda
-// });
-
-// const bucketName = 'feesight'; // Ganti dengan nama bucket Anda
-
-// module.exports = {
-//   storage,
-//   bucketName,
-// };
-
+const { storage, bucketName, loadModelFromGCS } = require('./gcsConfig');
+const tf = require('@tensorflow/tfjs-node');
+const bodyParser = require('body-parser');
+const { execFile } = require('child_process');
+const { PythonShell } = require('python-shell');
 
 // Initialize Express app
 const app = express();
 const port = process.env.PORT || 3000;
+
+// Middleware to parse JSON bodies
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
 
 // Initialize Firebase Admin SDK
 const serviceAccount = require('./serviceAccountKey.json');
@@ -31,10 +25,7 @@ admin.initializeApp({
 // Import the firestore module
 const firestore = admin.firestore();
 
-// Middleware to parse JSON bodies
-app.use(express.json());
-
-const JWT_SECRET = 'your_jwt_secret'; // Replace with your actual secret
+const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret'; // Use environment variable for production
 
 // Function to compare provided password with hashed password
 async function comparePasswords(plainPassword, hashedPassword) {
@@ -57,12 +48,10 @@ async function authenticateToken(req, res, next) {
   if (!token) return res.status(401).json({ error: 'Access denied' });
 
   try {
-    // Verify JWT and check if it is still valid with Firebase
     const decodedToken = jwt.verify(token, JWT_SECRET);
     const user = await admin.auth().getUser(decodedToken.uid);
     const validSince = new Date(user.tokensValidAfterTime).getTime() / 1000;
 
-    // Check if the token was issued before the last token revocation
     if (decodedToken.iat < validSince) {
       return res.status(403).json({ error: 'Invalid token' });
     }
@@ -79,6 +68,13 @@ async function authenticateToken(req, res, next) {
 app.post('/signup', async (req, res) => {
   try {
     const { email, password, displayName } = req.body;
+
+    // Add logging to verify values
+    console.log('Signup request:', { email, password, displayName });
+
+    if (!email || !password || !displayName) {
+      return res.status(400).json({ error: 'All fields are required: email, password, displayName' });
+    }
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -99,7 +95,7 @@ app.post('/signup', async (req, res) => {
     res.status(201).json({ id: userRecord.uid, ...userData });
   } catch (error) {
     console.error('Error adding user:', error);
-    res.status(500).json({ error: 'Failed to add user', message: 'The email address is already in use by another account' });
+    res.status(500).json({ error: 'Failed to add user', message: error.message });
   }
 });
 
@@ -107,6 +103,13 @@ app.post('/signup', async (req, res) => {
 app.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
+
+    // Add logging to verify values
+    console.log('Login request:', { email, password });
+
+    if (!email || !password) {
+      return res.status(400).json({ error: 'All fields are required: email, password' });
+    }
 
     const userSnapshot = await firestore.collection('users').where('email', '==', email).get();
 
@@ -220,10 +223,7 @@ app.post('/logout', authenticateToken, async (req, res) => {
 // Route to handle user deletion
 app.delete('/user', authenticateToken, async (req, res) => {
   try {
-    // Delete the user from Firebase Authentication
     await admin.auth().deleteUser(req.user.uid);
-    
-    // Delete the user document from Firestore
     await firestore.collection('users').doc(req.user.uid).delete();
 
     res.status(200).json({ message: 'User deleted successfully' });
@@ -233,6 +233,37 @@ app.delete('/user', authenticateToken, async (req, res) => {
   }
 });
 
+// Route to handle predictions for all tickers
+app.post('/predict', (req, res) => {
+  const { end_date } = req.body;
+
+  if (!end_date) {
+      return res.status(400).json({ error: 'Missing end_date parameter' });
+  }
+
+  // PythonShell options
+  const options = {
+      mode: 'text',
+      pythonOptions: ['-u'], // get print results in real-time
+      args: [end_date],
+  };
+
+  PythonShell.run('predict_stock.py', options, (err, results) => {
+      if (err) {
+          console.error('Error while running Python script:', err);
+          return res.status(500).json({ error: 'Internal server error' });
+      }
+
+      try {
+          // Parsing the JSON result from Python script
+          const predictions = JSON.parse(results[0]); // Assuming results is an array with single element
+          res.json(predictions);
+      } catch (error) {
+          console.error('Error parsing Python script output:', error);
+          res.status(500).json({ error: 'Invalid response from Python script' });
+      }
+  });
+});
 // Start server
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
