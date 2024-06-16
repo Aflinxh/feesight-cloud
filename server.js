@@ -152,6 +152,29 @@ app.put('/user', authenticateToken, async (req, res) => {
   }
 });
 
+app.get('/user/transactions', authenticateToken, async (req, res) => {
+  try {
+    const { date } = req.query;  // Ambil tanggal dari query string
+    let query = firestore.collection('users').doc(req.user.uid).collection('transactions');
+
+    if (date) {
+      // Jika tanggal diberikan, tambahkan filter untuk tanggal tersebut
+      query = query.where('date', '==', date);
+    }
+
+    const transactionsSnapshot = await query.get();
+    const transactions = [];
+    transactionsSnapshot.forEach(doc => {
+      transactions.push({ id: doc.id, ...doc.data() });
+    });
+
+    res.status(200).json(transactions);
+  } catch (error) {
+    console.error('Error getting transactions:', error);
+    res.status(500).json({ error: 'Failed to get transactions' });
+  }
+});
+
 // Route to handle transactions
 app.post('/user/transactions', authenticateToken, async (req, res) => {
   const transaction = {
