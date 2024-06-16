@@ -16,7 +16,7 @@ ticker_to_model = {
     'ETH-USD': ('models/predict_eth.h5', 20),
     'BBCA.JK': ('models/predict_bbca.h5', 6),
     'BBRI.JK': ('models/predict_bbri.h5', 6),
-    # 'INDF.JK': ('models/predict_indf.h5', 13),
+    'INDF.JK': ('models/predict_indf.h5', 13),
     'TLKM.JK': ('models/predict_tlkm.h5', 6),
     'AMZN': ('models/predict_amzn.h5', 6),
 }
@@ -42,8 +42,8 @@ def predict_stock_price(ticker, end_date):
 
     input_data, last_date, sc = prepare_input_data(ticker, end_date, n_steps)
 
-    predicted_price_scaled = model.predict(input_data).flatten()[0]
-
+    predicted_price_scaled = model.predict(input_data, verbose=0).flatten()[0]
+    
     predicted_price = sc.inverse_transform([[np.nan, predicted_price_scaled, np.nan]])[0][1]
 
     return predicted_price
@@ -65,4 +65,5 @@ if __name__ == "__main__":
         except Exception as e:
             results[ticker] = f"Error: {str(e)}"
 
+    # Output JSON directly to stdout
     print(json.dumps(results))
