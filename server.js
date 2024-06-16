@@ -1,12 +1,11 @@
 const express = require('express');
 const admin = require('firebase-admin');
-const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const { storage, bucketName, loadModelFromGCS } = require('./gcsConfig');
+// const { storage, bucketName, loadModelFromGCS } = require('./gcsConfig');
 const tf = require('@tensorflow/tfjs-node');
 const bodyParser = require('body-parser');
-const { execFile } = require('child_process');
-const { PythonShell } = require('python-shell');
+const { exec } = require('child_process');
+// const { PythonShell } = require('python-shell');
 
 // Initialize Express app
 const app = express();
@@ -241,28 +240,27 @@ app.post('/predict', (req, res) => {
       return res.status(400).json({ error: 'Missing end_date parameter' });
   }
 
-  // PythonShell options
-  const options = {
-      mode: 'text',
-      pythonOptions: ['-u'], // get print results in real-time
-      args: [end_date],
-  };
+  const pythonScript = 'predict_stock.py';
+  const command = `python3.10 ${pythonScript} ${end_date}`;
 
-  PythonShell.run('predict_stock.py', options, (err, results) => {
-      if (err) {
-          console.error('Error while running Python script:', err);
-          return res.status(500).json({ error: 'Internal server error' });
-      }
+  exec(command, (err, stdout, stderr) => {
+    if (err) {
+        console.error('Error while running Python script:', err);
+        return res.status(500).json({ error: 'Internal server error' });
+    }
 
-      try {
-          // Parsing the JSON result from Python script
-          const predictions = JSON.parse(results[0]); // Assuming results is an array with single element
-          res.json(predictions);
-      } catch (error) {
-          console.error('Error parsing Python script output:', error);
-          res.status(500).json({ error: 'Invalid response from Python script' });
-      }
-  });
+    console.log('Python script stdout:', stdout);
+    console.log('Python script stderr:', stderr);
+
+    try {
+        const predictions = JSON.parse(stdout.trim());
+        res.json(predictions);
+    } catch (error) {
+        console.error('Error parsing Python script output:', error);
+        res.status(500).json({ error: 'Invalid response from Python script' });
+    }
+});
+
 });
 // Start server
 app.listen(port, () => {
