@@ -5,11 +5,12 @@ const jwt = require('jsonwebtoken');
 const tf = require('@tensorflow/tfjs-node');
 const bodyParser = require('body-parser');
 const { exec } = require('child_process');
+const bcrypt = require('bcrypt');
 // const { PythonShell } = require('python-shell');
 
 // Initialize Express app
 const app = express();
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 8080;
 
 // Middleware to parse JSON bodies
 app.use(bodyParser.json());
@@ -203,7 +204,7 @@ app.put('/user/transactions', authenticateToken, async (req, res) => {
     res.status(200).json({ message: 'Transaction updated successfully' });
   } catch (error) {
     console.error('Error updating transaction:', error);
-    res.status(500).json({ error: 'Failed to update transaction' });
+    res.status(500).json({ error: error });
   }
 });
 
@@ -264,12 +265,12 @@ app.post('/predict', (req, res) => {
   }
 
   const pythonScript = 'predict_stock.py';
-  const command = `python3.10 ${pythonScript} ${end_date}`;
+  const command = `python3 ${pythonScript} ${end_date}`;
 
   exec(command, (err, stdout, stderr) => {
     if (err) {
         console.error('Error while running Python script:', err);
-        return res.status(500).json({ error: 'Internal server error' });
+        return res.status(500).json({ error: err });
     }
 
     console.log('Python script stdout:', stdout);
