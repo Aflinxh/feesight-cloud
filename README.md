@@ -127,10 +127,6 @@ Updates user profile details in Firestore.
         "message": "User deleted successfully"
     }
     ```
-    
-- **Error (404):**
-- **Error (500):**
-
  ---
 
 ### Create Transactions (`POST /user/transactions`)
@@ -159,9 +155,6 @@ Updates user profile details in Firestore.
     
     }
 
-- **Error (404):**
-- **Error (500):**
-
 ---
 ### Update Transactions (`PUT /user/transactions`)
  Update transactions details in Firestore.
@@ -181,9 +174,6 @@ Updates user profile details in Firestore.
     "message": "Transaction updated successfully"
     }
     ```
-- **Error (404):**
-- **Error (500):**
-
 ---
 
 ### Delete Transactions (`DELETE /user/transactions`)
@@ -207,10 +197,6 @@ Updates user profile details in Firestore.
     "message": "Transaction updated successfully"
     }
     ```
-    
-- **Error (404):**
-- **Error (500):**
-
 ---
 
 ### Check Balance (`GET/user/balance?toDate=YOUR_DATE_HERE)
@@ -230,10 +216,6 @@ check balance in spesific date
      "balance": 600000
     }
     ```
-    
-- **Error (404):**
-- **Error (500):**
-
 ---
 
 ### Spare Money (`GET/user/spareMoney?toDate=YOUR_DATE_HERE)
@@ -253,10 +235,6 @@ check spare money balance in spesific use.
      "balance": 600000
     }
     ```
-    
-- **Error (404):**
-- **Error (500):**
-
 ---
 
 ### Predict Asset Price (`POST/predict`)
@@ -289,10 +267,6 @@ check spare money balance in spesific use.
     "AMZN": 176.97314501889915
     }
     ```
-    
-- **Error (404):**
-- **Error (500):**
-
 ---
 
  ### Logout (`POST/logout`)
@@ -312,9 +286,6 @@ check spare money balance in spesific use.
      "message": "Logout successful"
     }
     ```
-    
-- **Error (404):**
-- **Error (500):**
 
 ## Preparation and Prerequisites
 
@@ -404,3 +375,6 @@ docker push YOUR_LOCATION-docker.pkg.dev/YOUR_PROJECT_ID/YOUR_REPOSITORY_NAME/im
 ## Developer
 - [Ronal Pandapotan Simbolon](https://github.com/RolloPanda)
 - [Angelina Priskila Laowoi](https://github.com/Angelinapriskila)
+
+## Other Contributor
+- [Alfin Gusti Alamsyah](https://github.com/Aflinxh)
