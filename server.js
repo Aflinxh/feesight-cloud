@@ -370,9 +370,6 @@ app.post('/predict', (req, res) => {
     }
 });
 
-
-
-
 });
 // Start server
 app.listen(port, () => {
