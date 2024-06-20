@@ -9,18 +9,27 @@ This API manages user authentication and profile information storage using Fireb
 1. [Firebase Authentication API](#firebase-authentication-api)
    - [Create Account (`POST /signup`)](#create-account-post-signup)
    - [Login (`POST /login`)](#login-post-login)
-   - [Validate Token (`POST /ping`)](#validate-token-post-ping)
+   - [Logout (POST /logout)](#logout-postlogout)
 2. [User Profile API](#user-profile-api)
-   - [Get User Profile (`GET /userProfile/{user_id}`)](#get-user-profile-get-userprofileuser_id)
-   - [Update User Profile (`PUT /userProfile/{user_id}`)](#update-user-profile-put-userprofileuser_id)
-   - [Test Upload to Cloud Storage (`POST /upload`)](#test-upload-to-cloud-storage-post-upload)
-3. [Preparation and Prerequisites](#preparation-and-prerequisites)
-   - [Setting Up the Project in Google Cloud](#setting-up-the-project-in-google-cloud)
-   - [Configuration for Cloud Storage](#configuration-for-cloud-storage)
-   - [Authenticate to Secret Manager Locally](#authenticate-to-secret-manager-locally)
-4. [Running the Application Locally](#running-the-application-locally)
-   - [Documentation and Testing](#documentation-and-testing)
-5. [Deploying the Application to Cloud Run](#deploying-the-Application-to-Cloud-Run)
+   - [Update User Profile (`PUT /user/`)](#update-user-profile-put-user)
+   - [Delete User Profile (`DELETE /User`)](#delete-user-profile-delete-user)
+3. [Transaction](#transaction)
+   - [Create Transactions (`POST /user/transactions`)](#create-transactions-post-usertransactions)
+   - [Update Transactions (`PUT /user/transactions`)](#update-transactions-put-usertransactions)
+   - [Delete Transactions (`DELETE /user/transactions`)](#delete-transactions-delete-usertransactions)
+   - [Check Balance (`GET /user/balance?toDate=YOUR_DATE_HERE`)](#check-balance-get-user-balance-todateyour_date_here)
+   - [Spare Money (`GET /user/spareMoney?toDate=YOUR_DATE_HERE`)](#spare-money-get-usersparemoneytodateyour_date_here)
+   - [Predict Asset Price (`POST /predict`)](https://your-api-url/predict)
+4. [Preparation and Prerequisites](#preparation-and-prerequisites)
+   - [Creating a Project in Google Cloud](#creating-a-project-in-google-cloud)
+   - [Generating a Firebase Service Account](#generating-a-firebase-service-account)
+   - [Accessing Firebase Web App Configuration](#accessing-firebase-web-app-configuration)
+5. [Running the Application Locally](#running-the-application-locally)
+   - [Cloning the Repository](#cloning-the-repository)
+   - [Installing Requirements](#installing-requirements)
+   - [Installing Requirements for node.js](#installing-requirements)
+   - [Run the Server](#run-the-server)
+6. [Deploying the Application to Cloud Run](#deploying-the-application-to-cloud-run)
 
 ## Endpoint Description
 ### Create Account (`POST /signup`)
@@ -32,10 +41,9 @@ Creates a new user account with Firebase authentication and adds user profile de
 - **Request Body (JSON):** 
     ```json
     {
-        "email": "example@example.com",
-        "password": "your_password",
-        "username": "user123",
-        "address": "123 Street, City"
+     "email" :"user999@gmail.com",
+     "password" : "user123",
+     "displayName" : "user999"
     }
     ```
 
@@ -43,8 +51,10 @@ Creates a new user account with Firebase authentication and adds user profile de
 - **Success (201):** Account created successfully.
     ```json
     {
-        "user_id": "user_uid",
-        "message": "Akun berhasil dibuat user_uid"
+    "id": "SlAl2zgDQ3WfKpFph7FFSImgJNP2",
+    "email": "user999@gmail.com",
+    "displayName": "user999",
+    "passwordHash": "your_passwoard"
     }
     ```
 - **Error (400):** Email already in use.
@@ -59,8 +69,8 @@ Authenticates user credentials and generates an access token.
 - **Request Body (JSON):** 
     ```json
     {
-        "email": "example@example.com",
-        "password": "your_password"
+      "email" :"user8@gmail.com",
+      "password" : "user123"
     }
     ```
 
@@ -68,93 +78,243 @@ Authenticates user credentials and generates an access token.
 - **Success (200):** Login successful.
     ```json
     {
-        "token": "access_token",
-        "user_id": "user_uid"
+       "message": "Login successful",
+       "token": "access_token",
     }
     ```
 - **Error (400):** Invalid credentials.
 
-### Validate Token (`POST /ping`)
-Validates the access token and returns user details.
-
-#### Request:
-- **Endpoint:** `/ping`
-- **Method:** `POST`
-- **Request Header:** `authorization: Bearer your_access_token`
-
-#### Response:
-- **Success (200):** User details.
-
 ---
 
 
-## User Profile API
-
-### Get User Profile (`GET /userProfile/{user_id}`)
-Retrieves user profile details based on the provided user ID.
-
-#### Request:
-- **Endpoint:** `/userProfile/{user_id}`
-- **Method:** `GET`
-- **Path Parameters:**
-    - `user_id`: ID of the user to retrieve profile details for (String).
-
-#### Responses:
-- **Success (200):** User profile details in JSON format.
-    ```json
-    {
-        "user_id": "************",
-        "email": "*****@****.com",
-        "address": "********",
-        "creationDate": "************",
-        "username": "*****",
-        "photo": "https://storage.googleapis.com/***********/*****.jpg"
-    }
-    ```
-- **Error (404):** User profile not found.
-- **Error (500):** Internal server error.
-
-
-### Update User Profile (`PUT /userProfile/{user_id}`)
+### Update User Profile (`PUT /user`)
 Updates user profile details in Firestore.
 
 #### Request:
-- **Endpoint:** `/userProfile/{user_id}`
+- **Endpoint:** `/user`
 - **Method:** `PUT`
 - **Request Body (Form Data):** 
     - `username` (optional): New username.
-    - `address` (optional): New address.
-    - `file` (optional): New profile picture (Upload file).
+    - `displayName` (optional): New diplayname.
 
 #### Responses:
 - **Success (200):** User profile updated successfully.
     ```json
     {
-        "message": "Profil pengguna berhasil diperbarui"
+    "email" :"user9@gmail.com",
+    "displayName" : "user9"
     }
     ```
 - **Error (404):** User profile not found.
 - **Error (500):** Internal server error.
 
-  ### Test Upload to Cloud Storage (`POST /upload`)
-Uploads an image to Google Cloud Storage (GCS) for testing purposes.
+---
 
-#### Request:
-- **Endpoint:** `/upload`
-- **Method:** `POST`
-- **Request Body (Form Data):** 
-    - `photo`: Image file to upload (Upload file).
+### Delete User Profile (`DELETE /user`)
+ delete user details in Firestore.
+ 
+ #### Request:
+- **Endpoint:** `/user`
+- **Method:** `DELETE`
+- **Request Headers (Authorization):** 
+      - Authorization : "your_token"
 
 #### Responses:
-- **Success (200):** File uploaded successfully.
+- **Success (200):** Delete user successfully.
     ```json
+    
     {
-        "file_path": "URL_to_uploaded_file"
+        "message": "User deleted successfully"
     }
     ```
-- **Error (500):** Internal server error.
+    
+- **Error (404):**
+- **Error (500):**
+
+ ---
+
+### Create Transactions (`POST /user/transactions`)
+ create transactions details in Firestore.
+ #### Request:
+- **Endpoint:** `/user/transactions`
+- **Method:** `POST`
+- **Request Body (JSON):** 
+     ```json
+    
+    {
+       "amount": 1000000,
+       "type": "income",
+       "category": "salary",
+       "date": "2024-05-29T14:30:00Z"
+
+    }
+
+#### Responses:
+- **Success (200):** Transaction successfully.
+    ```json
+    {
+    
+    "message": "Transaction performed",
+    "id": "nTaMeFxIEpH6FkTcloVL"
+    
+    }
+
+- **Error (404):**
+- **Error (500):**
 
 ---
+### Update Transactions (`PUT /user/transactions`)
+ Update transactions details in Firestore.
+ 
+ #### Request:
+- **Endpoint:** `/user/transaction`
+- **Method:** `PUT`
+- **Request Body (Form Data):** 
+    - `amount` (optional): New amount.
+    - `type` (optional): New type.
+    - `category` : New category.
+
+#### Responses:
+- **Success (200):** Updated  transaction successfully.
+    ```json
+    {
+    "message": "Transaction updated successfully"
+    }
+    ```
+- **Error (404):**
+- **Error (500):**
+
+---
+
+### Delete Transactions (`DELETE /user/transactions`)
+ delete transactions details in Firestore.
+ 
+ #### Request:
+- **Endpoint:** `/user/transaction`
+- **Method:** `DELETE`
+- **Request Body (JSON):** 
+     ```json
+    
+    {
+       "id": "Ad1GkC7K1iZcd4mkFtTC"
+    }
+
+#### Responses:
+- **Success (200):** Delete transaction successfully.
+    ```json
+    
+    {
+    "message": "Transaction updated successfully"
+    }
+    ```
+    
+- **Error (404):**
+- **Error (500):**
+
+---
+
+### Check Balance (`GET/user/balance?toDate=YOUR_DATE_HERE)
+check balance in spesific date
+
+ #### Request:
+- **Endpoint:** `/user/balance?toDate=YOUT_DATE_HERE`
+- **Method:** `GET`
+- **Request Params :** 
+     -`toDate` : "YOUR_DATE_HERE"
+
+#### Responses:
+- **Success (200):** Check balance successfully.
+    ```json
+    
+    {
+     "balance": 600000
+    }
+    ```
+    
+- **Error (404):**
+- **Error (500):**
+
+---
+
+### Spare Money (`GET/user/spareMoney?toDate=YOUR_DATE_HERE)
+check spare money balance in spesific use.
+
+ #### Request:
+- **Endpoint:** `/user/spareMoney?toDate=YOUT_DATE_HERE`
+- **Method:** `GET`
+- **Request Params :** 
+     -date : "YOUR_DATE_HERE"
+
+#### Responses:
+- **Success (200):** spare money successfully.
+    ```json
+    
+    {
+     "balance": 600000
+    }
+    ```
+    
+- **Error (404):**
+- **Error (500):**
+
+---
+
+### Predict Asset Price (`POST/predict`)
+ predict the stocks or crypto in a spesific date
+ 
+ #### Request:
+- **Endpoint:** `/predict`
+- **Method:** `POST `
+- **Request Body (JSON):**
+     ```json
+    
+    {
+    "end_date" : "2024-06-20"
+     }
+
+#### Responses:
+ **Success (200):** predict successfully.
+    ```json
+
+    {
+    "BNB-USD": 598.0254488287279,
+    "NEAR-USD": 5.242614952962325,
+    "SOL-USD": 144.54741345163546,
+    "LINK-USD": 14.048344498867941,
+    "ETH-USD": 3375.613500343675,
+    "BBCA.JK": 9555.906373093316,
+    "BBRI.JK": 4256.878264446494,
+    "INDF.JK": 5898.3795837017715,
+    "TLKM.JK": 2825.6966301286125,
+    "AMZN": 176.97314501889915
+    }
+    ```
+    
+- **Error (404):**
+- **Error (500):**
+
+---
+
+ ### Logout (`POST/logout`)
+ logout user for app.
+ 
+ #### Request:
+- **Endpoint:** `/logout`
+- **Method:** `POST`
+- **Request Headers :** 
+      - `Authorization` : "your_token"
+
+#### Responses:
+- **Success (200):** Logout successfully.
+    ```json
+    
+    {
+     "message": "Logout successful"
+    }
+    ```
+    
+- **Error (404):**
+- **Error (500):**
 
 ## Preparation and Prerequisites
 
@@ -167,14 +327,15 @@ Uploads an image to Google Cloud Storage (GCS) for testing purposes.
 2. **Generating a Firebase Service Account**
     - Access [Firebase](console.firebase.google.com). Select the project
     - Go to **Settings > Service accounts** in Firebase.
-    - Create a service account and store it in Secret Manager with the name `firebase_sak`.
+    - Create a service account and generate a new private key,select node.js and click generate a new private key.
 
 3. **Accessing Firebase Web App Configuration**
-    - Go to your Firebase project's overview.
-    - Add or create a web app.
-    - Access the web app and copy the `firebaseConfig` value.
-    - Modify the `firebaseConfig` value by adding `"databaseURL": ""` and save it to Secret Manager as `firebase_config`. The complete value should look like:
-      ```json
+    - Check your downloaded private key.
+    - Rename the file to serviceAccountKey.json.
+    - Copy the file to the root directory.
+    - Update your code to use these defined variables for Firebase interactions.
+   
+      ```
       {
           "apiKey": "yourAPIkey",
           "authDomain": "XXXX.firebaseapp.com",
@@ -186,62 +347,6 @@ Uploads an image to Google Cloud Storage (GCS) for testing purposes.
       }
       ```
 
-### Configuration for Cloud Storage
-
-1. **Creating a Service Account for Cloud Storage**
-    - Create a service account and generate the service account key and store it in Secret Manager as `scancare-user-profile_bucket_sak`.
-
-2. **Setting Bucket Access**
-    - Create a public bucket in Cloud Storage.
-    - Grant the storage admin role to the service account in the created bucket.
-
-### Authenticate to Secret Manager Locally
-(If you want to run the application locally)
-
-1. **Installing Google Cloud SDK**
-    - Install the [Google Cloud SDK](https://cloud.google.com/sdk/docs/install).
-
-2. **Logging into Google Cloud**
-    - Run the following command for authentication:
-      ```bash
-      gcloud auth application-default login
-      ```
-## If you dont want to use secret manager with less secure method for Local Development
-
-If you choose to use this method for local development, here are the steps:
-
-1. **Adding Firebase Service Account:**
-    - Place the Firebase Service Account Key (JSON file) in the same folder as the main Python file.
-    - Define the path to the Firebase Service Account file in your code:
-        ```
-        firebaseSak = 'your_firebase_sak_file.json'  # Update with the actual file name
-        ```
-
-2. **Updating Firebase Configuration:**
-    - Replace the `firebaseConfig` variable with the Firebase configuration value directly in your code:
-        ```
-        firebaseConfig = {
-            "apiKey": "yourAPIkey",
-            "authDomain": "XXXX.firebaseapp.com",
-            "projectId": "xxxxxxxxx",
-            "storageBucket": "xxxxxxxx",
-            "messagingSenderId": "xxxxxxxxxx",
-            "appId": "xxxxxxxxxx",
-            "databaseURL": ""
-        }
-        ```
-
-3. **Adding Cloud Storage Service Account:**
-    - Place the Cloud Storage Service Account Key (JSON file) in the same folder as the main Python file.
-    - Define the path to the Cloud Storage Service Account file in your code:
-        ```
-        key = 'your_bucket_service_account_key.json'  # Update with the actual file name
-        ```
-
-4. **Code Adjustment:**
-    - Update your code to use these defined variables for Firebase and Cloud Storage interactions.
-
-Please note that this method is less secure and not recommended for production environments. Always follow best practices for handling sensitive data, especially when deploying applications.
 ## Running the Application Locally
 
 1. **Cloning the Repository**
@@ -251,46 +356,18 @@ Please note that this method is less secure and not recommended for production e
     ```
 
 2. **Installing Requirements**
+
     ```bash
     pip install -r requirements.txt
     ```
-
-3. **Modifying Access to Secret Manager**
-   - Navigate to `main.py`.
-   - Find these sections:
-     ```python
-     firebaseSak = access_secret_version('YOUR_PROJECT_ID', 'firebase_sak','1')
-     ```
-     ```python
-     firebaseConfig = access_secret_version('YOUR_PROJECT_ID', 'firebase_config','1')
-     ```
-     ```python
-     key = access_secret_version('YOUR_PROJECT_ID', 'scancare-user-profile_bucket_sak','1')
-     ```
-   - Update `YOUR_PROJECT_ID` with your Google Cloud project ID.
-
-6. **Running the FastAPI Application**
-    - Update the run configuration in `main.py`:
-      
-        ```python
-        port = int(os.environ.get('PORT', 8000)) # Use any desired port number
-        print(f"Listening to http://localhost:{port}")
-        uvicorn.run(app, host='localhost', port=port) 
-        ```
-        
-7. **Starting the Local Server**
-    ```bash
-    uvicorn main:app --reload
+3. **Installing Requirements for node.js**
+   ```bash
+    npm i
     ```
-
-8. **Accessing the API**
-    - Utilize the provided API endpoints as documented earlier.
-
----
-
-### Testing With FastAPI Swagger UI
-- View Swagger UI: `http://localhost:8000/docs` on your browser
-
+4. **Run the Server**
+   ```bash
+    npm run start
+    ```
 
 ## Deploying the Application to Cloud Run
 ```bash
@@ -300,26 +377,30 @@ git clone <repository_url>
 # Change to the destined directory
 cd <project_folder>
 
-# Create a Docker Artifact Repository in a specified region
-gcloud artifacts repositories create YOUR_REPOSITORY_NAME --repository-format=docker --location=YOUR_REGION
+# Create a Artifact Registry
+gcloud auth login
+gcloud config set project YOUR_PROJECT_ID
 
-# Build Docker image for the ML API
-docker buildx build --platform linux/amd64 -t YOUR_IMAGE_PATH:YOUR_TAG --build-arg PORT=8080 .
+# Enable the Artifact Registry API
+gcloud services enable artifactregistry.googleapis.com
 
-# Push the Docker image to the Artifact Repository
-docker push YOUR_IMAGE_PATH:YOUR_TAG
+# Create the Artifact Registry
+gcloud artifacts repositories create feesight-cloud \
+    --repository-format=docker \
+    --location=YOUR_LOCATION \
+    --description="Artifact Registry for Feesight Cloud"
 
-# Deploy the Docker image to Cloud Run with allocated memory
-gcloud run deploy --image YOUR_IMAGE_PATH:YOUR_TAG --memory 3Gi
+# Build Docker image
+docker build -t YOUR_IMAGE_PATH:v2 .
 
-# Fetching the service account associated with the newly deployed Cloud Run service
-SERVICE_ACCOUNT=$(gcloud run services describe YOUR_SERVICE_NAME --platform=managed --region=YOUR_REGION --format="value(serviceAccountEmail)")
+# Create a new tag for an existing Docker image to the Artifact Repository
+docker tag YOUR_TAG_NAME:v2 YOUR_LOCATION-docker.pkg.dev/YOUR_PROJECT_ID/YOUR_REPOSITORY_NAME/image:latest
 
-# Grant necessary IAM roles to the service account linked to the Cloud Run service
-gcloud projects add-iam-policy-binding YOUR_PROJECT_ID --member=serviceAccount:${SERVICE_ACCOUNT} --role=roles/secretmanager.secretAccessor
+# Upload a local Docker image to a remote repository.
+docker push YOUR_LOCATION-docker.pkg.dev/YOUR_PROJECT_ID/YOUR_REPOSITORY_NAME/image:latest
 
-gcloud projects add-iam-policy-binding YOUR_PROJECT_ID --member=serviceAccount:${SERVICE_ACCOUNT} --role=roles/cloudsql.client
+
 ```
 ## Developer
-- [Ni Putu Adnya Puspita Dewi](https://github.com/adnyaaa)
-- [Tsania Magistra Rahma Insani](https://github.com/tsaniamagistra)
+- [Ronal Pandapotan Simbolon](https://github.com/RolloPanda)
+- [Angelina Priskila Laowoi](https://github.com/Angelinapriskila)
