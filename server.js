@@ -2,10 +2,10 @@ const express = require('express');
 const admin = require('firebase-admin');
 const jwt = require('jsonwebtoken');
 // const { storage, bucketName, loadModelFromGCS } = require('./gcsConfig');
-const tf = require('@tensorflow/tfjs-node');
+// const tf = require('@tensorflow/tfjs-node');
 const bodyParser = require('body-parser');
 const { exec } = require('child_process');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcrypt'); 
 // const { PythonShell } = require('python-shell');
 
 // Initialize Express app
@@ -127,8 +127,9 @@ app.post('/login', async (req, res) => {
     }
 
     const token = generateToken({ uid: userDoc.id, email: userData.email });
+    const displayName = userData.displayName; // Ambil displayName dari data pengguna
 
-    res.status(200).json({ message: 'Login successful', token });
+    res.status(200).json({ message: 'Login successful', token, displayName });
   } catch (error) {
     console.error('Error logging in user:', error);
     res.status(401).json({ error: 'Invalid credentials' });
@@ -163,6 +164,9 @@ app.get('/user/transactions', authenticateToken, async (req, res) => {
       query = query.where('date', '==', date);
     }
 
+    // Tambahkan orderBy untuk mengurutkan dari yang terbaru
+    query = query.orderBy('date', 'desc');
+
     const transactionsSnapshot = await query.get();
     const transactions = [];
     transactionsSnapshot.forEach(doc => {
@@ -175,6 +179,7 @@ app.get('/user/transactions', authenticateToken, async (req, res) => {
     res.status(500).json({ error: 'Failed to get transactions' });
   }
 });
+
 
 // Route to handle transactions
 app.post('/user/transactions', authenticateToken, async (req, res) => {
@@ -256,6 +261,86 @@ app.delete('/user', authenticateToken, async (req, res) => {
   }
 });
 
+
+app.get('/user/balance', authenticateToken, async (req, res) => {
+  const userId = req.user.uid;
+  const toDate = req.query.toDate;
+
+  try {
+    const transactionsRef = firestore.collection('users').doc(userId).collection('transactions');
+    const transactionsSnapshot = await transactionsRef.where('date', '<=', toDate).get();
+
+    console.log(`Transactions snapshot: ${transactionsSnapshot.size}`);
+
+    let income = 0;
+    let expense = 0;
+
+    transactionsSnapshot.forEach((doc) => {
+      const transaction = doc.data();
+      console.log(`Transaction: ${transaction.type} - ${transaction.amount}`);
+      if (transaction.type === 'income') {
+        income += +transaction.amount; // or Number(transaction.amount)
+      } else if (transaction.type === 'expense') {
+        expense += +transaction.amount; // or Number(transaction.amount)
+      }
+    });
+
+    console.log(`Income: ${income}, Expense: ${expense}`);
+
+    const balance = income - expense;
+    res.status(200).json({ balance });
+  } catch (error) {
+    console.error('Error calculating balance:', error);
+    res.status(500).json({ error: 'Failed to calculate balance' });
+  }
+});
+
+app.get('/user/spareMoney', authenticateToken, async (req, res) => {
+  const userId = req.user.uid;
+  const date = req.query.date; // date in the format of YYYY-MM-DD
+
+  try {
+    const transactionsRef = firestore.collection('users').doc(userId).collection('transactions');
+    const transactionsSnapshot = await transactionsRef.get();
+
+    let balance = 0;
+    let closestFutureExpense = null;
+    let closestFutureExpenseDate = null;
+
+    transactionsSnapshot.forEach((doc) => {
+      const transaction = doc.data();
+      const transactionDate = transaction.date;
+
+      // Calculate balance up to the specified date (inclusive)
+      if (transactionDate <= date) {
+        if (transaction.type === 'income') {
+          balance += +transaction.amount;
+        } else if (transaction.type === 'expense') {
+          balance -= +transaction.amount;
+        }
+      }
+
+      // Find the closest future expense after the specified date
+      if (transaction.type === 'expense' && transactionDate > date) {
+        if (!closestFutureExpenseDate || transactionDate < closestFutureExpenseDate) {
+          closestFutureExpense = transaction.amount;
+          closestFutureExpenseDate = transactionDate;
+        }
+      }
+    });
+
+    // Adjust balance by the closest future expense if any
+    if (closestFutureExpense !== null) {
+      balance -= closestFutureExpense;
+    }
+
+    res.status(200).json({ balance });
+  } catch (error) {
+    console.error('Error calculating spare money:', error);
+    res.status(500).json({ error: 'Failed to calculate spare money' });
+  }
+});
+
 // Route to handle predictions for all tickers
 app.post('/predict', (req, res) => {
   const { end_date } = req.body;
@@ -284,6 +369,9 @@ app.post('/predict', (req, res) => {
         res.status(500).json({ error: 'Invalid response from Python script' });
     }
 });
+
+
+
 
 });
 // Start server
