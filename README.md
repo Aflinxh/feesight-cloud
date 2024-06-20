@@ -322,8 +322,8 @@ check spare money balance in spesific use.
 
 1. **Cloning the Repository**
     ```bash
-    git clone <repository_url>
-    cd <project_folder>
+    git clone https://github.com/Aflinxh/feesight-cloud
+    cd feesight-cloud
     ```
 
 2. **Installing Requirements**
